@@ -1,0 +1,157 @@
+import { useState, type FormEvent, type ReactNode } from 'react'
+import { CalendarDays, Check, ChevronDown, Dices, ImagePlus, Plus, Sparkles, Users, X } from 'lucide-react'
+import type { GameTable, GameTableInput, Group } from '../types'
+
+interface ModalShellProps {
+  title: string
+  subtitle: string
+  icon: ReactNode
+  onClose: () => void
+  children: ReactNode
+}
+
+function ModalShell({ title, subtitle, icon, onClose, children }: ModalShellProps) {
+  return (
+    <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+      <section className="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <header className="modal-header"><div className="modal-icon">{icon}</div><div><h2 id="modal-title">{title}</h2><p>{subtitle}</p></div><button type="button" className="icon-button modal-close" onClick={onClose} aria-label="Chiudi"><X size={18} /></button></header>
+        {children}
+      </section>
+    </div>
+  )
+}
+
+interface CreateGroupModalProps {
+  onClose: () => void
+  onCreate: (data: { name: string; description: string }) => void | Promise<void>
+}
+
+export function CreateGroupModal({ onClose, onCreate }: CreateGroupModalProps) {
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    onCreate({ name: name.trim(), description: description.trim() })
+  }
+
+  return (
+    <ModalShell title="Crea un gruppo" subtitle="Un nuovo party, una nuova storia." icon={<Users size={19} />} onClose={onClose}>
+      <form className="modal-form" onSubmit={submit}>
+        <label>Nome del gruppo<input autoFocus required maxLength={70} value={name} onChange={(event) => setName(event.target.value)} placeholder="Es. La Compagnia dell’Alba" /></label>
+        <label>Descrizione <span className="optional-label">OPZIONALE</span><textarea rows={2} maxLength={180} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Di cosa parla la vostra prossima avventura?" /></label>
+        <div className="modal-footnote"><Sparkles size={14} /> Dopo la creazione riceverai un codice invito da condividere con il party.</div>
+        <div className="modal-actions"><button type="button" className="button-secondary" onClick={onClose}>Annulla</button><button type="submit" className="button-primary"><Plus size={15} /> Crea gruppo</button></div>
+      </form>
+    </ModalShell>
+  )
+}
+
+interface JoinGroupModalProps {
+  onClose: () => void
+  onJoin: (code: string) => void | Promise<void>
+}
+
+export function JoinGroupModal({ onClose, onJoin }: JoinGroupModalProps) {
+  const [code, setCode] = useState('')
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    onJoin(code.trim())
+  }
+
+  return (
+    <ModalShell title="Unisciti a un gruppo" subtitle="Inserisci il codice ricevuto dal Master." icon={<Users size={19} />} onClose={onClose}>
+      <form className="modal-form" onSubmit={submit}>
+        <label>Codice invito<input autoFocus required autoCapitalize="characters" minLength={20} maxLength={80} value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} placeholder="Incolla qui il codice" /></label>
+        <div className="modal-footnote"><Sparkles size={14} /> L’invito è personale, scade dopo 30 giorni e non rivela i dati degli altri gruppi.</div>
+        <div className="modal-actions"><button type="button" className="button-secondary" onClick={onClose}>Annulla</button><button type="submit" className="button-primary"><Users size={15} /> Entra nel gruppo</button></div>
+      </form>
+    </ModalShell>
+  )
+}
+
+interface CreatePollModalProps {
+  groups: Group[]
+  initialGroupId?: string
+  onClose: () => void
+  onCreate: (data: { groupId: string; title: string; startDate: string; endDate: string }) => void
+}
+
+export function CreatePollModal({ groups, initialGroupId, onClose, onCreate }: CreatePollModalProps) {
+  const [groupId, setGroupId] = useState(initialGroupId ?? groups[0]?.id ?? '')
+  const [title, setTitle] = useState('La prossima sessione')
+  const [startDate, setStartDate] = useState(initialPollStartInput)
+  const [endDate, setEndDate] = useState(initialPollEndInput)
+  const invalidRange = endDate < startDate
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!invalidRange) onCreate({ groupId, title: title.trim(), startDate, endDate })
+  }
+
+  return (
+    <ModalShell title="Apri un sondaggio" subtitle="Metti le date sul tavolo e lascia scegliere il party." icon={<CalendarDays size={19} />} onClose={onClose}>
+      <form className="modal-form" onSubmit={submit}>
+        <label>Gruppo<select required value={groupId} onChange={(event) => setGroupId(event.target.value)}>{groups.map((group) => <option value={group.id} key={group.id}>{group.name}</option>)}</select><ChevronDown className="select-chevron" size={15} /></label>
+        <label>Titolo del sondaggio<input required maxLength={70} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Es. Serata a Barovia" /></label>
+        <div className="date-fields"><label>Dal<input type="date" required value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label><label>Al<input type="date" required min={startDate} value={endDate} onChange={(event) => setEndDate(event.target.value)} /></label></div>
+        {invalidRange && <span className="form-error">La data finale non può precedere quella iniziale.</span>}
+        <div className="modal-footnote"><Users size={14} /> Tutti i membri del gruppo potranno votare ogni giorno.</div>
+        <div className="modal-actions"><button type="button" className="button-secondary" onClick={onClose}>Annulla</button><button type="submit" className="button-primary" disabled={invalidRange}><CalendarDays size={15} /> Apri sondaggio</button></div>
+      </form>
+    </ModalShell>
+  )
+}
+
+interface CreateTableModalProps {
+  table: GameTable | null
+  onClose: () => void
+  onSave: (values: GameTableInput) => void
+}
+
+const coverPresets = [
+  { name: 'Foresta', url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=85' },
+  { name: 'Taverna', url: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=1200&q=85' },
+  { name: 'Nebbia', url: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=85' },
+]
+const systems = ['D&D 5e · 2014', 'D&D 5e · 2024', 'Pathfinder 2e', 'Call of Cthulhu', 'Altro']
+const initialPollStart = new Date()
+initialPollStart.setDate(initialPollStart.getDate() + 1)
+const initialPollEnd = new Date(initialPollStart)
+initialPollEnd.setDate(initialPollEnd.getDate() + 6)
+const initialPollStartInput = `${initialPollStart.getFullYear()}-${String(initialPollStart.getMonth() + 1).padStart(2, '0')}-${String(initialPollStart.getDate()).padStart(2, '0')}`
+const initialPollEndInput = `${initialPollEnd.getFullYear()}-${String(initialPollEnd.getMonth() + 1).padStart(2, '0')}-${String(initialPollEnd.getDate()).padStart(2, '0')}`
+
+export function CreateTableModal({ table, onClose, onSave }: CreateTableModalProps) {
+  const [name, setName] = useState(table?.name ?? '')
+  const [adventureTitle, setAdventureTitle] = useState(table?.adventureTitle ?? '')
+  const [system, setSystem] = useState(table?.system ?? systems[1] ?? '')
+  const [customSystem, setCustomSystem] = useState(table && !systems.includes(table.system) ? table.system : '')
+  const [imageUrl, setImageUrl] = useState(table?.imageUrl ?? coverPresets[0]?.url ?? '')
+  const [maxSeats, setMaxSeats] = useState(table?.maxSeats ?? 5)
+  const [notes, setNotes] = useState(table?.notes ?? '')
+  const [customCover, setCustomCover] = useState(false)
+  const minimumSeats = Math.max(2, ...(table?.seats.map((seat) => seat.seatNumber) ?? []))
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    onSave({ name: name.trim(), adventureTitle: adventureTitle.trim(), system: system === 'Altro' ? customSystem.trim() : system, imageUrl: imageUrl.trim(), maxSeats, notes: notes.trim() })
+  }
+
+  return (
+    <ModalShell title={table ? 'Modifica tavolo' : 'Crea un tavolo'} subtitle="Prepara il tavolo e raduna la compagnia." icon={<Dices size={19} />} onClose={onClose}>
+      <form className="modal-form table-modal-form" onSubmit={submit}>
+        <label>Nome del tavolo<input autoFocus required maxLength={70} value={name} onChange={(event) => setName(event.target.value)} placeholder="Es. Tavolo 1 · La Taverna del Drago" /></label>
+        <label>Titolo dell’avventura<input required maxLength={70} value={adventureTitle} onChange={(event) => setAdventureTitle(event.target.value)} placeholder="Es. Il Risveglio del Lich" /></label>
+        <div className="date-fields"><label>Sistema di gioco<select value={systems.includes(system) ? system : 'Altro'} onChange={(event) => setSystem(event.target.value)}>{systems.map((item) => <option value={item} key={item}>{item}</option>)}</select><ChevronDown className="select-chevron" size={15} /></label><label>Posti disponibili<select value={maxSeats} onChange={(event) => setMaxSeats(Number(event.target.value))}>{Array.from({ length: 7 }, (_, index) => index + 2).filter((seats) => seats >= minimumSeats).map((seats) => <option value={seats} key={seats}>{seats} posti</option>)}</select><ChevronDown className="select-chevron" size={15} />{minimumSeats > 2 && <small className="seat-minimum-note">Minimo {minimumSeats} per conservare i posti prenotati</small>}</label></div>
+        {system === 'Altro' && <label>Nome del sistema<input required value={customSystem} onChange={(event) => setCustomSystem(event.target.value)} placeholder="Es. Fabula Ultima" /></label>}
+        <label>Immagine di copertina <button type="button" className="inline-edit" onClick={() => setCustomCover(!customCover)}><ImagePlus size={13} /> {customCover ? 'Scegli una copertina' : 'Usa un URL'}</button></label>
+        {customCover ? <input aria-label="URL copertina" type="url" value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} placeholder="https://..." /> : (
+          <div className="cover-presets">{coverPresets.map((cover) => <button type="button" className={`cover-preset ${imageUrl === cover.url ? 'preset-active' : ''}`} key={cover.name} onClick={() => setImageUrl(cover.url)}><img src={cover.url} alt="" /><span>{cover.name}</span>{imageUrl === cover.url && <Check size={14} />}</button>)}</div>
+        )}
+        <label>Note e informazioni <span className="optional-label">OPZIONALE</span><textarea rows={2} maxLength={160} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Livello, durata, requisiti, benvenuto ai nuovi giocatori..." /></label>
+        <div className="modal-actions"><button type="button" className="button-secondary" onClick={onClose}>Annulla</button><button type="submit" className="button-primary"><Dices size={15} /> {table ? 'Salva modifiche' : 'Crea tavolo'}</button></div>
+      </form>
+    </ModalShell>
+  )
+}
