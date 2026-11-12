@@ -14,6 +14,7 @@ const EMPTY_STATE: AppState = {
   tables: [],
   rooms: [],
   selectedRoomId: '',
+  selectedRoomDate: '',
   role: 'player',
   currentUserId: '',
   selectedGroupId: '',
@@ -33,6 +34,11 @@ function getErrorMessage(error: unknown) {
 
 function mapStatus(status: string): PollStatus {
   return status === 'confirmed' || status === 'closed' ? status : 'active'
+}
+
+function getLocalDate() {
+  const date = new Date()
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -136,12 +142,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         createdAt: poll.created_at as string,
       }
     })
-    const roomsResult = await client.from('game_rooms').select('id, name, description').eq('workspace_id', workspace.id).order('created_at', { ascending: true })
+    const roomsResult = await client.from('game_rooms').select('id, name, description, event_date').eq('workspace_id', workspace.id).order('created_at', { ascending: true })
     if (roomsResult.error) throw roomsResult.error
     const rooms: GameRoom[] = (roomsResult.data ?? []).map((room) => ({
       id: room.id as string,
       name: room.name as string,
       description: room.description as string,
+      eventDate: room.event_date as string,
     }))
     const tablesResult = await client.from('game_tables')
       .select('id, room_id, master_user_id, name, adventure_title, system, image_url, max_seats, notes')
@@ -172,6 +179,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         anonymous: seat.anonymous,
       })),
     }))
+    const roomDate = window.localStorage.getItem(`guildhall-room-date-${workspace.id}`) || getLocalDate()
     setState((previous) => ({
       ...previous,
       workspaces,
@@ -182,7 +190,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       polls,
       tables,
       rooms,
-      selectedRoomId: rooms.some((room) => room.id === previous.selectedRoomId) ? previous.selectedRoomId : rooms[0]?.id ?? '',
+      selectedRoomDate: roomDate,
+      selectedRoomId: rooms.some((room) => room.id === previous.selectedRoomId && room.eventDate === roomDate)
+        ? previous.selectedRoomId
+        : rooms.find((room) => room.eventDate === roomDate)?.id ?? '',
       role: membership.role as Role,
       currentUserId: user.id,
       selectedGroupId: (membership.role === 'master' && previous.selectedGroupId === 'all')
@@ -509,6 +520,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setView = useCallback((activeView: AppView) => setState((current) => ({ ...current, activeView })), [])
   const setSelectedGroup = useCallback((selectedGroupId: string) => setState((current) => ({ ...current, selectedGroupId })), [])
   const setSelectedRoom = useCallback((selectedRoomId: string) => setState((current) => ({ ...current, selectedRoomId })), [])
+  const setSelectedRoomDate = useCallback((selectedRoomDate: string) => {
+    window.localStorage.setItem(`guildhall-room-date-${state.selectedWorkspaceId}`, selectedRoomDate)
+    setState((current) => ({
+      ...current,
+      selectedRoomDate,
+      selectedRoomId: current.rooms.find((room) => room.eventDate === selectedRoomDate)?.id ?? '',
+    }))
+  }, [state.selectedWorkspaceId])
   const createRoom = useCallback(async (room: Omit<GameRoom, 'id'>) => {
     const client = getSupabaseClient()
     setError(null)
@@ -517,11 +536,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         workspace_id: state.selectedWorkspaceId,
         name: room.name.trim(),
         description: room.description.trim(),
+        event_date: room.eventDate,
       }).select('id').single()
       if (roomError) throw roomError
       if (!createdRoom) throw new Error('Il server non ha restituito la sala creata.')
       if (authUser) await loadWorkspace(authUser)
-      setState((current) => ({ ...current, selectedRoomId: createdRoom.id }))
+      setState((current) => ({ ...current, selectedRoomId: createdRoom.id, selectedRoomDate: room.eventDate }))
+      window.localStorage.setItem(`guildhall-room-date-${state.selectedWorkspaceId}`, room.eventDate)
     } catch (roomError) {
       console.error('Creazione della sala non riuscita.', roomError)
       setError(getErrorMessage(roomError))
@@ -591,6 +612,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setView,
     setSelectedGroup,
     setSelectedRoom,
+    setSelectedRoomDate,
     createRoom,
     updateProfile,
     updatePassword,
@@ -603,7 +625,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     updateTable,
     deleteTable,
     toggleSeat,
-  }), [state, currentUser, authUser?.email, authStatus, error, inviteCode, signIn, signUp, signOut, createWorkspace, selectWorkspace, joinGroup, createInvite, clearInvite, clearError, setView, setSelectedGroup, setSelectedRoom, createRoom, updateProfile, updatePassword, uploadImage, toggleVote, confirmSession, createGroup, createPoll, createTable, updateTable, deleteTable, toggleSeat])
+  }), [state, currentUser, authUser?.email, authStatus, error, inviteCode, signIn, signUp, signOut, createWorkspace, selectWorkspace, joinGroup, createInvite, clearInvite, clearError, setView, setSelectedGroup, setSelectedRoom, setSelectedRoomDate, createRoom, updateProfile, updatePassword, uploadImage, toggleVote, confirmSession, createGroup, createPoll, createTable, updateTable, deleteTable, toggleSeat])
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }

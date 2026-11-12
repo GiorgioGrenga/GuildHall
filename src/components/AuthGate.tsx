@@ -64,7 +64,7 @@ export function AuthGate() {
           <ol className="setup-steps">
             <li><span>1</span><div><b>Crea un progetto Supabase</b><small>Dal dashboard Supabase, crea un progetto e apri Project Settings → API.</small></div></li>
             <li><span>2</span><div><b>Configura le variabili locali</b><small>Copia <code>.env.example</code> in <code>.env.local</code> e inserisci URL e chiave anon/publishable.</small></div></li>
-            <li><span>3</span><div><b>Applica il database</b><small>Esegui in ordine le migrazioni <code>202611120001_initial_schema.sql</code> e <code>202611120002_workspaces_rooms_table_masters.sql</code> dal SQL Editor Supabase.</small></div></li>
+            <li><span>3</span><div><b>Applica il database</b><small>Esegui in ordine le migrazioni <code>202611120001</code>, <code>202611120002</code> e <code>202611120003_room_event_dates.sql</code> dal SQL Editor Supabase.</small></div></li>
           </ol>
           <p className="setup-security"><ShieldCheck size={15} /> La chiave client pubblica è protetta da policy RLS. Non inserire mai una service-role key nel frontend.</p>
         </section>

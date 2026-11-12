@@ -21,6 +21,7 @@ export interface AppContextValue {
   setView: (view: AppView) => void
   setSelectedGroup: (groupId: string) => void
   setSelectedRoom: (roomId: string) => void
+  setSelectedRoomDate: (date: string) => void
   createRoom: (room: Omit<GameRoom, 'id'>) => Promise<void>
   updateProfile: (name: string, avatarUrl: string) => Promise<void>
   updatePassword: (password: string) => Promise<void>

@@ -21,6 +21,7 @@ export interface GameRoom {
   id: string
   name: string
   description: string
+  eventDate: string
 }
 
 export interface Group {
@@ -78,6 +79,7 @@ export interface AppState {
   tables: GameTable[]
   rooms: GameRoom[]
   selectedRoomId: string
+  selectedRoomDate: string
   role: Role
   currentUserId: string
   selectedGroupId: string

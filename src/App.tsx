@@ -77,7 +77,7 @@ function GroupSchedule({ group }: { group: Group }) {
 }
 
 function Dashboard() {
-  const { state, currentUser, authEmail, isMaster, setView, setSelectedGroup, setSelectedRoom, createRoom, createWorkspace, uploadImage, updateProfile, updatePassword, createTable, updateTable, deleteTable, createGroup, createPoll, createInvite, joinGroup, inviteCode, clearInvite, signOut, error, clearError } = useApp()
+  const { state, currentUser, authEmail, isMaster, setView, setSelectedGroup, setSelectedRoom, setSelectedRoomDate, createRoom, createWorkspace, uploadImage, updateProfile, updatePassword, createTable, updateTable, deleteTable, createGroup, createPoll, createInvite, joinGroup, inviteCode, clearInvite, signOut, error, clearError } = useApp()
   const [modal, setModal] = useState<'group' | 'poll' | 'table' | 'join' | 'room' | 'workspace' | 'profile' | null>(null)
   const [editingTable, setEditingTable] = useState<GameTable | null>(null)
   const [copyError, setCopyError] = useState('')
@@ -92,6 +92,7 @@ function Dashboard() {
   const activePoll = state.polls.find((poll) => poll.groupId === (activeGroups[0]?.id ?? state.selectedGroupId) && poll.status === 'active')
   const totalMembers = activeGroups.reduce((total, group) => total + group.memberIds.length + 1, 0)
   const isTables = state.activeView === 'tables'
+  const currentDateRooms = state.rooms.filter((room) => room.eventDate === state.selectedRoomDate)
   const currentRoomTables = state.tables.filter((table) => table.roomId === state.selectedRoomId)
 
   async function copyInvite() {
@@ -185,7 +186,9 @@ function Dashboard() {
           ) : (
             <TablesRoom
               tables={currentRoomTables}
-              rooms={state.rooms}
+              rooms={currentDateRooms}
+              selectedDate={state.selectedRoomDate}
+              onSelectDate={setSelectedRoomDate}
               selectedRoomId={state.selectedRoomId}
               onSelectRoom={setSelectedRoom}
               onCreateRoom={() => setModal('room')}
@@ -203,8 +206,8 @@ function Dashboard() {
       {modal === 'group' && <CreateGroupModal onClose={() => setModal(null)} onCreate={async (data) => { await createGroup(data); setModal(null) }} />}
       {modal === 'join' && <JoinGroupModal onClose={() => setModal(null)} onJoin={async (code) => { await joinGroup(code); setModal(null) }} />}
       {modal === 'poll' && <CreatePollModal groups={visibleGroups} initialGroupId={state.selectedGroupId === 'all' ? visibleGroups[0]?.id : state.selectedGroupId} onClose={() => setModal(null)} onCreate={(data) => { createPoll(data); setSelectedGroup(data.groupId); setModal(null) }} />}
-      {modal === 'table' && <CreateTableModal table={editingTable} rooms={state.rooms} users={state.users} currentRoomId={state.selectedRoomId} isOwner={isMaster} onClose={() => { setModal(null); setEditingTable(null) }} onSave={handleCreateTable} onUpload={uploadImage} />}
-      {modal === 'room' && <CreateRoomModal onClose={() => setModal(null)} onCreate={async (room) => { await createRoom(room); setModal(null) }} />}
+      {modal === 'table' && <CreateTableModal table={editingTable} rooms={currentDateRooms} users={state.users} currentRoomId={state.selectedRoomId} isOwner={isMaster} onClose={() => { setModal(null); setEditingTable(null) }} onSave={handleCreateTable} onUpload={uploadImage} />}
+      {modal === 'room' && <CreateRoomModal date={state.selectedRoomDate} onClose={() => setModal(null)} onCreate={async (room) => { await createRoom(room); setModal(null) }} />}
       {modal === 'workspace' && <CreateWorkspaceModal onClose={() => setModal(null)} onCreate={async (name) => { await createWorkspace(name); setModal(null) }} />}
       {modal === 'profile' && <ProfileModal user={currentUser} email={authEmail} onClose={() => setModal(null)} onSave={updateProfile} onUpload={uploadImage} onChangePassword={updatePassword} onSignOut={() => void signOut()} />}
     </div>

@@ -45,9 +45,10 @@ export function CreateGroupModal({ onClose, onCreate }: CreateGroupModalProps) {
   )
 }
 
-  export function CreateRoomModal({ onClose, onCreate }: { onClose: () => void; onCreate: (room: Omit<GameRoom, 'id'>) => Promise<void> }) {
+  export function CreateRoomModal({ date, onClose, onCreate }: { date: string; onClose: () => void; onCreate: (room: Omit<GameRoom, 'id'>) => Promise<void> }) {
     const [name, setName] = useState('')
     const [description, setDescription] = useState('')
+    const [eventDate, setEventDate] = useState(date)
     const [formError, setFormError] = useState('')
     const [busy, setBusy] = useState(false)
     return (
@@ -56,8 +57,9 @@ export function CreateGroupModal({ onClose, onCreate }: CreateGroupModalProps) {
           event.preventDefault()
           setBusy(true)
           setFormError('')
-          void onCreate({ name: name.trim(), description: description.trim() }).then(onClose).catch((error: unknown) => setFormError(error instanceof Error ? error.message : 'Creazione della sala non riuscita.')).finally(() => setBusy(false))
+            void onCreate({ name: name.trim(), description: description.trim(), eventDate }).then(onClose).catch((error: unknown) => setFormError(error instanceof Error ? error.message : 'Creazione della sala non riuscita.')).finally(() => setBusy(false))
         }}>
+          <label>Data dell’evento<input required type="date" value={eventDate} onChange={(event) => setEventDate(event.target.value)} /></label>
           <label>Nome della sala<input autoFocus required maxLength={70} value={name} onChange={(event) => setName(event.target.value)} placeholder="Es. Sala D&D" /></label>
           <label>Descrizione <span className="optional-label">OPZIONALE</span><textarea rows={2} maxLength={180} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Descrivi le attività di questa sala." /></label>
           {formError && <p className="form-error" role="alert">{formError}</p>}

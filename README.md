@@ -5,7 +5,7 @@ Applicazione React + TypeScript per organizzare sessioni GDR, votare le disponib
 ## Avvio locale
 
 1. Crea un progetto Supabase.
-2. Nel SQL Editor del progetto esegui, nell’ordine, `supabase/migrations/202611120001_initial_schema.sql` e `supabase/migrations/202611120002_workspaces_rooms_table_masters.sql`. La seconda migrazione aggiunge sale, più spazi per account, Master assegnati ai tavoli e lo storage immagini.
+2. Nel SQL Editor del progetto esegui le migrazioni nell’ordine: `202611120001_initial_schema.sql`, `202611120002_workspaces_rooms_table_masters.sql`, `202611120003_room_event_dates.sql`. L’ultima aggiunge la data alle sale; quelle già presenti vengono assegnate alla data corrente.
 3. Copia `.env.example` in `.env.local` e configura:
 
    ```dotenv
@@ -20,7 +20,7 @@ Applicazione React + TypeScript per organizzare sessioni GDR, votare le disponib
    npm run dev
    ```
 
-Ogni account può creare più spazi o unirsi a quelli di altri. Chi crea uno spazio ne è il proprietario e gestisce gruppi, inviti, sale e tavoli; tutti i membri invitati vedono le sale condivise dello spazio. Il proprietario può assegnare un Master a un singolo tavolo: quel Master può gestire e rimuovere i posti e modificare o eliminare il tavolo assegnato, senza privilegi sugli altri tavoli o sullo spazio. I Master di tavolo possono prenotare un posto come tutti gli altri giocatori.
+Ogni account può creare più spazi o unirsi a quelli di altri. Chi crea uno spazio ne è il proprietario e gestisce gruppi, inviti, sale e tavoli; tutti i membri invitati vedono le sale condivise dello spazio. Ogni sala è associata a una data e contiene i tavoli di quella giornata; cambiando data si vedono solo le sale di quel giorno. Il proprietario può assegnare un Master a un singolo tavolo: quel Master può gestire e rimuovere i posti e modificare o eliminare il tavolo assegnato, senza privilegi sugli altri tavoli o sullo spazio. I Master di tavolo possono prenotare un posto come tutti gli altri giocatori.
 
 Il proprietario crea gruppi e condivide i codici d’invito; i giocatori si registrano, confermano l’email e inseriscono il codice per unirsi. I codici scadono dopo 30 giorni e il server ne conserva solo l’hash. Profili e copertine accettano un URL oppure un’immagine caricata (JPG, PNG, WebP o GIF fino a 5 MB) nello storage Supabase.
 
