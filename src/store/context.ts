@@ -29,6 +29,8 @@ export interface AppContextValue {
   toggleVote: (groupId: string, date: string) => Promise<void>
   confirmSession: (pollId: string, date: string) => Promise<void>
   createGroup: (input: CreateGroupInput) => Promise<void>
+  updateGroup: (groupId: string, input: CreateGroupInput) => Promise<void>
+  updateRoom: (roomId: string, input: Pick<GameRoom, 'name' | 'description'>) => Promise<void>
   createPoll: (input: CreatePollInput) => Promise<void>
   createTable: (input: GameTableInput) => Promise<void>
   updateTable: (tableId: string, input: GameTableInput) => Promise<void>

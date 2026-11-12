@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Compass, Dices, Plus, SlidersHorizontal, Sparkles, Users } from 'lucide-react'
+import { Compass, Dices, Pencil, Plus, SlidersHorizontal, Sparkles, Users } from 'lucide-react'
 import type { GameRoom, GameTable, User } from '../types'
 import { useApp } from '../store/useApp'
 import { TableCard } from './TableCard'
@@ -12,6 +12,7 @@ interface TablesRoomProps {
   onSelectDate: (date: string) => void
   onSelectRoom: (roomId: string) => void
   onCreateRoom: () => void
+  onEditRoom: (roomId: string) => void
   users: User[]
   currentUser: User
   isMaster: boolean
@@ -20,7 +21,7 @@ interface TablesRoomProps {
   onDelete: (tableId: string) => void
 }
 
-export function TablesRoom({ tables, rooms, selectedRoomId, selectedDate, onSelectDate, onSelectRoom, onCreateRoom, users, currentUser, isMaster, onCreate, onEdit, onDelete }: TablesRoomProps) {
+export function TablesRoom({ tables, rooms, selectedRoomId, selectedDate, onSelectDate, onSelectRoom, onCreateRoom, onEditRoom, users, currentUser, isMaster, onCreate, onEdit, onDelete }: TablesRoomProps) {
   const { toggleSeat } = useApp()
   const [anonymous, setAnonymous] = useState(false)
   const occupied = tables.reduce((count, table) => count + table.seats.length, 0)
@@ -51,6 +52,7 @@ export function TablesRoom({ tables, rooms, selectedRoomId, selectedDate, onSele
         <div className="room-actions">
           <label className="room-select-label"><span>DATA</span><input aria-label="Seleziona data della sala" type="date" value={selectedDate} onChange={(event) => onSelectDate(event.target.value)} /></label>
           {rooms.length > 0 && <label className="room-select-label"><SlidersHorizontal size={15} /><select aria-label="Seleziona sala" value={selectedRoomId} onChange={(event) => onSelectRoom(event.target.value)}>{rooms.map((room) => <option value={room.id} key={room.id}>{room.name}</option>)}</select></label>}
+          {isMaster && selectedRoomId && <button type="button" className="filter-button" onClick={() => onEditRoom(selectedRoomId)}><Pencil size={14} /> Modifica sala</button>}
           {isMaster && <button type="button" className="filter-button" onClick={onCreateRoom}><Plus size={15} /> Crea sala</button>}
         </div>
       </div>

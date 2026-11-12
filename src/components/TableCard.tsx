@@ -61,7 +61,11 @@ export function TableCard({ table, users, currentUser, canManageTable, accent, o
                   title={label}
                 >
                   {booking?.anonymous && <EyeOff size={12} />}
-                  {booking && !booking.anonymous && <span>{player?.name.charAt(0).toUpperCase() ?? '?'}</span>}
+                  {booking && !booking.anonymous && (
+                    player?.avatarUrl
+                      ? <img className="seat-avatar" src={player.avatarUrl} alt="" />
+                      : <span>{player?.name.charAt(0).toUpperCase() ?? '?'}</span>
+                  )}
                   <span className="seat-tooltip">{label}</span>
                 </button>
               )
@@ -71,7 +75,14 @@ export function TableCard({ table, users, currentUser, canManageTable, accent, o
             {table.seats.map((seat) => {
               const player = users.find((user) => user.id === seat.userId)
               const label = seat.anonymous && !canManageTable ? 'Giocatore Misterioso' : seat.anonymous ? `Anonimo (${player?.name ?? 'giocatore'})` : player?.name ?? 'Giocatore'
-              return <span className="seat-player-chip" key={seat.id}><i style={{ backgroundColor: player?.color ?? '#8c7cb5' }} />{label}</span>
+              return <span className="seat-player-chip" key={seat.id}>
+                {seat.anonymous
+                  ? <EyeOff size={12} />
+                  : player?.avatarUrl
+                    ? <img className="seat-player-avatar" src={player.avatarUrl} alt="" />
+                    : <i style={{ backgroundColor: player?.color ?? '#8c7cb5' }}>{player?.name.charAt(0).toUpperCase() ?? '?'}</i>}
+                {label}
+              </span>
             })}
             {!table.seats.length && <span className="no-one-seated">Nessun avventuriero ancora seduto</span>}
           </div>

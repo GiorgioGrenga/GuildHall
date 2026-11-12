@@ -398,6 +398,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })
   }, [runMutation, state.selectedWorkspaceId])
 
+  const updateGroup = useCallback(async (groupId: string, input: CreateGroupInput) => {
+    const client = getSupabaseClient()
+    setError(null)
+    try {
+      const { error: updateError } = await client.from('game_groups').update({
+        name: input.name.trim(),
+        description: input.description.trim(),
+      }).eq('id', groupId)
+      if (updateError) throw updateError
+      if (authUser) await loadWorkspace(authUser)
+    } catch (groupError) {
+      console.error('Modifica del gruppo non riuscita.', groupError)
+      setError(getErrorMessage(groupError))
+      throw groupError
+    }
+  }, [authUser, loadWorkspace])
+
   const createPoll = useCallback(async (input: CreatePollInput) => {
     const client = getSupabaseClient()
     await runMutation(async () => {
@@ -494,6 +511,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const existing = table?.seats.find((seat) => seat.userId === state.currentUserId)
       const selectedBooking = seatNumber > 0 ? table?.seats.find((seat) => seat.seatNumber === seatNumber) : undefined
       const canManageTable = state.role === 'master' || table?.masterUserId === state.currentUserId
+      if (selectedBooking && selectedBooking.userId !== state.currentUserId && !canManageTable) {
+        throw new Error('Puoi liberare solo il tuo posto.')
+      }
       if (selectedBooking && selectedBooking.userId !== state.currentUserId && canManageTable) {
         const { error: removeError } = await client.from('seat_bookings').delete().eq('id', selectedBooking.id)
         if (removeError) throw removeError
@@ -549,6 +569,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       throw roomError
     }
   }, [authUser, loadWorkspace, state.selectedWorkspaceId])
+  const updateRoom = useCallback(async (roomId: string, room: Pick<GameRoom, 'name' | 'description'>) => {
+    const client = getSupabaseClient()
+    setError(null)
+    try {
+      const { error: updateError } = await client.from('game_rooms').update({
+        name: room.name.trim(),
+        description: room.description.trim(),
+      }).eq('id', roomId)
+      if (updateError) throw updateError
+      if (authUser) await loadWorkspace(authUser)
+    } catch (roomError) {
+      console.error('Modifica della sala non riuscita.', roomError)
+      setError(getErrorMessage(roomError))
+      throw roomError
+    }
+  }, [authUser, loadWorkspace])
   const updateProfile = useCallback(async (name: string, avatarUrl: string) => {
     const client = getSupabaseClient()
     setError(null)
@@ -620,12 +656,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     toggleVote,
     confirmSession,
     createGroup,
+    updateGroup,
+    updateRoom,
     createPoll,
     createTable,
     updateTable,
     deleteTable,
     toggleSeat,
-  }), [state, currentUser, authUser?.email, authStatus, error, inviteCode, signIn, signUp, signOut, createWorkspace, selectWorkspace, joinGroup, createInvite, clearInvite, clearError, setView, setSelectedGroup, setSelectedRoom, setSelectedRoomDate, createRoom, updateProfile, updatePassword, uploadImage, toggleVote, confirmSession, createGroup, createPoll, createTable, updateTable, deleteTable, toggleSeat])
+  }), [state, currentUser, authUser?.email, authStatus, error, inviteCode, signIn, signUp, signOut, createWorkspace, selectWorkspace, joinGroup, createInvite, clearInvite, clearError, setView, setSelectedGroup, setSelectedRoom, setSelectedRoomDate, createRoom, updateRoom, updateProfile, updatePassword, uploadImage, toggleVote, confirmSession, createGroup, updateGroup, createPoll, createTable, updateTable, deleteTable, toggleSeat])
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }

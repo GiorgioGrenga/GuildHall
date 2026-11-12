@@ -22,33 +22,42 @@ function ModalShell({ title, subtitle, icon, onClose, children }: ModalShellProp
 }
 
 interface CreateGroupModalProps {
+  group?: Group
   onClose: () => void
-  onCreate: (data: { name: string; description: string }) => void | Promise<void>
+  onSave: (data: { name: string; description: string }) => Promise<void>
 }
 
-export function CreateGroupModal({ onClose, onCreate }: CreateGroupModalProps) {
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
+export function CreateGroupModal({ group, onClose, onSave }: CreateGroupModalProps) {
+  const [name, setName] = useState(group?.name ?? '')
+  const [description, setDescription] = useState(group?.description ?? '')
+  const [busy, setBusy] = useState(false)
+  const [formError, setFormError] = useState('')
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    onCreate({ name: name.trim(), description: description.trim() })
+    setBusy(true)
+    setFormError('')
+    void onSave({ name: name.trim(), description: description.trim() })
+      .then(onClose)
+      .catch((error: unknown) => setFormError(error instanceof Error ? error.message : 'Salvataggio del gruppo non riuscito.'))
+      .finally(() => setBusy(false))
   }
   return (
-    <ModalShell title="Crea un gruppo" subtitle="Un nuovo party, una nuova storia." icon={<Users size={19} />} onClose={onClose}>
+    <ModalShell title={group ? 'Modifica gruppo' : 'Crea un gruppo'} subtitle={group ? 'Aggiorna nome e descrizione del gruppo.' : 'Un nuovo party, una nuova storia.'} icon={<Users size={19} />} onClose={onClose}>
       <form className="modal-form" onSubmit={submit}>
         <label>Nome del gruppo<input autoFocus required maxLength={70} value={name} onChange={(event) => setName(event.target.value)} placeholder="Es. La Compagnia dell’Alba" /></label>
         <label>Descrizione <span className="optional-label">OPZIONALE</span><textarea rows={2} maxLength={180} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Di cosa parla la vostra prossima avventura?" /></label>
-        <div className="modal-footnote"><Sparkles size={14} /> Dopo la creazione riceverai un codice invito da condividere con il party.</div>
-        <div className="modal-actions"><button type="button" className="button-secondary" onClick={onClose}>Annulla</button><button type="submit" className="button-primary"><Plus size={15} /> Crea gruppo</button></div>
+        {!group && <div className="modal-footnote"><Sparkles size={14} /> Dopo la creazione riceverai un codice invito da condividere con il party.</div>}
+        {formError && <p className="form-error" role="alert">{formError}</p>}
+        <div className="modal-actions"><button type="button" className="button-secondary" onClick={onClose}>Annulla</button><button type="submit" className="button-primary" disabled={busy}>{group ? <Check size={15} /> : <Plus size={15} />} {group ? 'Salva gruppo' : 'Crea gruppo'}</button></div>
       </form>
     </ModalShell>
   )
 }
 
-  export function CreateRoomModal({ date, onClose, onCreate }: { date: string; onClose: () => void; onCreate: (room: Omit<GameRoom, 'id'>) => Promise<void> }) {
-    const [name, setName] = useState('')
-    const [description, setDescription] = useState('')
-    const [eventDate, setEventDate] = useState(date)
+  export function CreateRoomModal({ room, date, onClose, onSave }: { room?: GameRoom; date: string; onClose: () => void; onSave: (values: { name: string; description: string; eventDate: string }) => Promise<void> }) {
+    const [name, setName] = useState(room?.name ?? '')
+    const [description, setDescription] = useState(room?.description ?? '')
+    const [eventDate, setEventDate] = useState(room?.eventDate ?? date)
     const [formError, setFormError] = useState('')
     const [busy, setBusy] = useState(false)
     return (
@@ -57,13 +66,13 @@ export function CreateGroupModal({ onClose, onCreate }: CreateGroupModalProps) {
           event.preventDefault()
           setBusy(true)
           setFormError('')
-            void onCreate({ name: name.trim(), description: description.trim(), eventDate }).then(onClose).catch((error: unknown) => setFormError(error instanceof Error ? error.message : 'Creazione della sala non riuscita.')).finally(() => setBusy(false))
+          void onSave({ name: name.trim(), description: description.trim(), eventDate }).then(onClose).catch((error: unknown) => setFormError(error instanceof Error ? error.message : 'Salvataggio della sala non riuscito.')).finally(() => setBusy(false))
         }}>
-          <label>Data dell’evento<input required type="date" value={eventDate} onChange={(event) => setEventDate(event.target.value)} /></label>
+          <label>Data dell’evento<input required type="date" value={eventDate} disabled={Boolean(room)} onChange={(event) => setEventDate(event.target.value)} /></label>
           <label>Nome della sala<input autoFocus required maxLength={70} value={name} onChange={(event) => setName(event.target.value)} placeholder="Es. Sala D&D" /></label>
           <label>Descrizione <span className="optional-label">OPZIONALE</span><textarea rows={2} maxLength={180} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Descrivi le attività di questa sala." /></label>
           {formError && <p className="form-error" role="alert">{formError}</p>}
-          <div className="modal-actions"><button type="button" className="button-secondary" onClick={onClose}>Annulla</button><button type="submit" className="button-primary" disabled={busy}><Plus size={15} /> Crea sala</button></div>
+          <div className="modal-actions"><button type="button" className="button-secondary" onClick={onClose}>Annulla</button><button type="submit" className="button-primary" disabled={busy}>{room ? <Check size={15} /> : <Plus size={15} />} {room ? 'Salva sala' : 'Crea sala'}</button></div>
         </form>
       </ModalShell>
     )

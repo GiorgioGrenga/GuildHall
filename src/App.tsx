@@ -77,9 +77,11 @@ function GroupSchedule({ group }: { group: Group }) {
 }
 
 function Dashboard() {
-  const { state, currentUser, authEmail, isMaster, setView, setSelectedGroup, setSelectedRoom, setSelectedRoomDate, createRoom, createWorkspace, uploadImage, updateProfile, updatePassword, createTable, updateTable, deleteTable, createGroup, createPoll, createInvite, joinGroup, inviteCode, clearInvite, signOut, error, clearError } = useApp()
+  const { state, currentUser, authEmail, isMaster, setView, setSelectedGroup, setSelectedRoom, setSelectedRoomDate, createRoom, updateRoom, updateGroup, createWorkspace, uploadImage, updateProfile, updatePassword, createTable, updateTable, deleteTable, createGroup, createPoll, createInvite, joinGroup, inviteCode, clearInvite, signOut, error, clearError } = useApp()
   const [modal, setModal] = useState<'group' | 'poll' | 'table' | 'join' | 'room' | 'workspace' | 'profile' | null>(null)
   const [editingTable, setEditingTable] = useState<GameTable | null>(null)
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
+  const [editingRoomId, setEditingRoomId] = useState<string | null>(null)
   const [copyError, setCopyError] = useState('')
   const visibleGroups = useMemo(() => {
     if (isMaster) return state.groups
@@ -116,7 +118,7 @@ function Dashboard() {
 
   return (
     <div className="app-shell">
-      <Navbar onCreateGroup={() => setModal('group')} onCreateWorkspace={() => setModal('workspace')} onCreateInvite={(groupId) => void createInvite(groupId)} onJoinGroup={() => setModal('join')} onProfile={() => setModal('profile')} />
+      <Navbar onCreateGroup={() => { setEditingGroupId(null); setModal('group') }} onEditGroup={(groupId) => { setEditingGroupId(groupId); setModal('group') }} onCreateWorkspace={() => setModal('workspace')} onCreateInvite={(groupId) => void createInvite(groupId)} onJoinGroup={() => setModal('join')} onProfile={() => setModal('profile')} />
       <div className="app-main">
         <header className="topbar">
           <div className="breadcrumb">
@@ -192,6 +194,7 @@ function Dashboard() {
               selectedRoomId={state.selectedRoomId}
               onSelectRoom={setSelectedRoom}
               onCreateRoom={() => setModal('room')}
+              onEditRoom={(roomId) => { setEditingRoomId(roomId); setModal('room') }}
               users={state.users}
               currentUser={currentUser}
               isMaster={isMaster}
@@ -203,11 +206,17 @@ function Dashboard() {
         </main>
       </div>
 
-      {modal === 'group' && <CreateGroupModal onClose={() => setModal(null)} onCreate={async (data) => { await createGroup(data); setModal(null) }} />}
+      {modal === 'group' && <CreateGroupModal group={state.groups.find((group) => group.id === editingGroupId)} onClose={() => { setModal(null); setEditingGroupId(null) }} onSave={async (data) => {
+        if (editingGroupId) await updateGroup(editingGroupId, data)
+        else await createGroup(data)
+      }} />}
       {modal === 'join' && <JoinGroupModal onClose={() => setModal(null)} onJoin={async (code) => { await joinGroup(code); setModal(null) }} />}
       {modal === 'poll' && <CreatePollModal groups={visibleGroups} initialGroupId={state.selectedGroupId === 'all' ? visibleGroups[0]?.id : state.selectedGroupId} onClose={() => setModal(null)} onCreate={(data) => { createPoll(data); setSelectedGroup(data.groupId); setModal(null) }} />}
       {modal === 'table' && <CreateTableModal table={editingTable} rooms={currentDateRooms} users={state.users} currentRoomId={state.selectedRoomId} isOwner={isMaster} onClose={() => { setModal(null); setEditingTable(null) }} onSave={handleCreateTable} onUpload={uploadImage} />}
-      {modal === 'room' && <CreateRoomModal date={state.selectedRoomDate} onClose={() => setModal(null)} onCreate={async (room) => { await createRoom(room); setModal(null) }} />}
+      {modal === 'room' && <CreateRoomModal room={currentDateRooms.find((room) => room.id === editingRoomId)} date={state.selectedRoomDate} onClose={() => { setModal(null); setEditingRoomId(null) }} onSave={async (room) => {
+        if (editingRoomId) await updateRoom(editingRoomId, room)
+        else await createRoom(room)
+      }} />}
       {modal === 'workspace' && <CreateWorkspaceModal onClose={() => setModal(null)} onCreate={async (name) => { await createWorkspace(name); setModal(null) }} />}
       {modal === 'profile' && <ProfileModal user={currentUser} email={authEmail} onClose={() => setModal(null)} onSave={updateProfile} onUpload={uploadImage} onChangePassword={updatePassword} onSignOut={() => void signOut()} />}
     </div>

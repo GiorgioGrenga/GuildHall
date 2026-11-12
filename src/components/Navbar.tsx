@@ -1,16 +1,17 @@
 import { useState } from 'react'
-import { CalendarDays, ChevronDown, Dices, Plus, ScrollText, Settings2, Share2, Sparkles, Table2, Users } from 'lucide-react'
+import { CalendarDays, ChevronDown, Dices, Pencil, Plus, ScrollText, Settings2, Share2, Sparkles, Table2, Users } from 'lucide-react'
 import { useApp } from '../store/useApp'
 
 interface NavbarProps {
   onCreateGroup: () => void
+  onEditGroup: (groupId: string) => void
   onCreateWorkspace: () => void
   onCreateInvite: (groupId: string) => void
   onJoinGroup: () => void
   onProfile: () => void
 }
 
-export function Navbar({ onCreateGroup, onCreateWorkspace, onCreateInvite, onJoinGroup, onProfile }: NavbarProps) {
+export function Navbar({ onCreateGroup, onEditGroup, onCreateWorkspace, onCreateInvite, onJoinGroup, onProfile }: NavbarProps) {
   const { state, setView, setSelectedGroup, selectWorkspace, currentUser, isMaster } = useApp()
   const [groupsOpen, setGroupsOpen] = useState(true)
   const groups = isMaster ? state.groups : state.groups.filter((group) => group.memberIds.includes(currentUser.id))
@@ -56,6 +57,7 @@ export function Navbar({ onCreateGroup, onCreateWorkspace, onCreateInvite, onJoi
                 <span className={`group-mark group-color-${index % 4}`}><Dices size={13} /></span><span className="group-name">{group.name}</span>
               </button>
               {isMaster && <button type="button" className="group-invite-button" onClick={() => onCreateInvite(group.id)} title={`Crea invito per ${group.name}`} aria-label={`Crea invito per ${group.name}`}><Share2 size={13} /></button>}
+              {isMaster && <button type="button" className="group-invite-button" onClick={() => onEditGroup(group.id)} title={`Modifica ${group.name}`} aria-label={`Modifica ${group.name}`}><Pencil size={13} /></button>}
             </div>
           ))}
           {isMaster && <button type="button" className="add-group-link" onClick={onCreateGroup}><Plus size={14} /> Crea un gruppo</button>}
