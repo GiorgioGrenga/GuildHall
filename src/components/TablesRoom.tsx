@@ -25,7 +25,6 @@ export function TablesRoom({ tables, rooms, selectedRoomId, selectedDate, onSele
   const [anonymous, setAnonymous] = useState(false)
   const occupied = tables.reduce((count, table) => count + table.seats.length, 0)
   const available = tables.reduce((count, table) => count + table.maxSeats - table.seats.length, 0)
-  const myBookings = tables.filter((table) => table.seats.some((seat) => seat.userId === currentUser.id)).length
 
   return (
     <div className="tables-page">
