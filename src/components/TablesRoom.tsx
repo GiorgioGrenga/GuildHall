@@ -39,7 +39,7 @@ export function TablesRoom({ tables, rooms, selectedRoomId, selectedDate, onSele
           <button type="button" className="button-primary" onClick={onCreate}><Plus size={17} /> Crea un tavolo</button>
         ) : !isMaster ? (
           <label className="anonymous-toggle"><span className={anonymous ? 'toggle-switch enabled' : 'toggle-switch'}><i /></span><input type="checkbox" checked={anonymous} onChange={(event) => setAnonymous(event.target.checked)} /><span><b>Prenota anonimamente</b><small>Il tuo nome resterà nascosto ai giocatori</small></span></label>
-        )}
+        ) : null}
       </div>
       <div className="table-stats">
         <div className="table-stat"><span className="table-stat-icon violet"><Dices size={17} /></span><span><b>{tables.length}</b><small>TAVOLI APERTI</small></span></div>
