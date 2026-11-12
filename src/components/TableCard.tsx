@@ -6,7 +6,7 @@ interface TableCardProps {
   table: GameTable
   users: User[]
   currentUser: User
-  isMaster: boolean
+  canManageTable: boolean
   accent: number
   onSeat: (seatNumber: number) => void
   onLeave: () => void
@@ -14,10 +14,10 @@ interface TableCardProps {
   onDelete: () => void
 }
 
-export function TableCard({ table, users, currentUser, isMaster, accent, onSeat, onLeave, onEdit, onDelete }: TableCardProps) {
+export function TableCard({ table, users, currentUser, canManageTable, accent, onSeat, onLeave, onEdit, onDelete }: TableCardProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const mySeat = table.seats.find((seat) => seat.userId === currentUser.id)
-  const master = users.find((user) => user.role === 'master')
+  const master = users.find((user) => user.id === table.masterUserId) ?? users.find((user) => user.role === 'master')
   const full = table.seats.length >= table.maxSeats
   const available = table.maxSeats - table.seats.length
 
@@ -27,7 +27,7 @@ export function TableCard({ table, users, currentUser, isMaster, accent, onSeat,
         <img src={table.imageUrl} alt="" onError={(event) => { event.currentTarget.style.display = 'none' }} />
         <div className="cover-overlay" />
         <span className="table-number">{table.name.split('·')[0].trim()}</span>
-        {isMaster && (
+        {canManageTable && (
           <div className="table-admin-menu">
             <button type="button" className="table-menu-trigger" aria-label="Opzioni tavolo" onClick={() => setMenuOpen(!menuOpen)}><MoreHorizontal size={19} /></button>
             {menuOpen && <div className="table-menu"><button type="button" onClick={() => { setMenuOpen(false); onEdit() }}><Pencil size={14} /> Modifica tavolo</button><button type="button" className="delete-action" onClick={() => { setMenuOpen(false); if (window.confirm(`Eliminare “${table.name}”?`)) onDelete() }}><X size={14} /> Elimina tavolo</button></div>}
@@ -48,15 +48,15 @@ export function TableCard({ table, users, currentUser, isMaster, accent, onSeat,
               const player = booking ? users.find((user) => user.id === booking.userId) : undefined
               const isMine = booking?.userId === currentUser.id
               const label = booking
-                ? booking.anonymous && !isMaster ? 'Giocatore Misterioso' : booking.anonymous ? `Anonimo (${player?.name ?? 'giocatore'})` : player?.name ?? 'Giocatore'
+                ? booking.anonymous && !canManageTable ? 'Giocatore Misterioso' : booking.anonymous ? `Anonimo (${player?.name ?? 'giocatore'})` : player?.name ?? 'Giocatore'
                 : `Posto ${seatNumber} libero`
               return (
                 <button
                   type="button"
                   key={seatNumber}
                   className={`seat-dot ${booking ? 'occupied' : 'empty'} ${booking?.anonymous ? 'anonymous-seat' : ''} ${isMine ? 'my-seat' : ''}`}
-                  disabled={Boolean(booking && !isMine) || (isMaster && !booking)}
-                  onClick={() => booking ? onLeave() : onSeat(seatNumber)}
+                  disabled={Boolean(booking && !isMine && !canManageTable)}
+                  onClick={() => booking ? isMine ? onLeave() : onSeat(seatNumber) : onSeat(seatNumber)}
                   aria-label={isMine ? `Il tuo posto ${seatNumber}, libera posto` : label}
                   title={label}
                 >
@@ -70,18 +70,16 @@ export function TableCard({ table, users, currentUser, isMaster, accent, onSeat,
           <div className="seat-players">
             {table.seats.map((seat) => {
               const player = users.find((user) => user.id === seat.userId)
-              const label = seat.anonymous && !isMaster ? 'Giocatore Misterioso' : seat.anonymous ? `Anonimo (${player?.name ?? 'giocatore'})` : player?.name ?? 'Giocatore'
+              const label = seat.anonymous && !canManageTable ? 'Giocatore Misterioso' : seat.anonymous ? `Anonimo (${player?.name ?? 'giocatore'})` : player?.name ?? 'Giocatore'
               return <span className="seat-player-chip" key={seat.id}><i style={{ backgroundColor: player?.color ?? '#8c7cb5' }} />{label}</span>
             })}
             {!table.seats.length && <span className="no-one-seated">Nessun avventuriero ancora seduto</span>}
           </div>
         </div>
         <div className="table-card-footer">
-          <div className="table-host"><span className="host-avatar"><ShieldCheck size={14} /></span><span><small>MASTER</small><b>{master?.name ?? 'Master'}</b></span></div>
+          <div className="table-host"><span className="host-avatar"><ShieldCheck size={14} /></span><span><small>{table.masterUserId ? 'MASTER DEL TAVOLO' : 'GESTITO DA'}</small><b>{master?.name ?? 'Proprietario'}</b></span></div>
           {mySeat ? (
             <button type="button" className="leave-seat-button" onClick={onLeave}><Check size={14} /> Sei seduto <span>·</span> Alzati</button>
-          ) : isMaster ? (
-            <span className="manage-label"><ShieldCheck size={14} /> Gestione Master</span>
           ) : (
             <button type="button" className="sit-button" disabled={full} onClick={() => onSeat(Array.from({ length: table.maxSeats }, (_, index) => index + 1).find((number) => !table.seats.some((seat) => seat.seatNumber === number)) ?? 1)}>
               {full ? 'Tavolo completo' : <>Siediti al tavolo <span>↗</span></>}

@@ -1,11 +1,15 @@
 import { useState } from 'react'
 import { Compass, Dices, Plus, SlidersHorizontal, Sparkles, Users } from 'lucide-react'
-import type { GameTable, User } from '../types'
+import type { GameRoom, GameTable, User } from '../types'
 import { useApp } from '../store/useApp'
 import { TableCard } from './TableCard'
 
 interface TablesRoomProps {
   tables: GameTable[]
+  rooms: GameRoom[]
+  selectedRoomId: string
+  onSelectRoom: (roomId: string) => void
+  onCreateRoom: () => void
   users: User[]
   currentUser: User
   isMaster: boolean
@@ -14,7 +18,7 @@ interface TablesRoomProps {
   onDelete: (tableId: string) => void
 }
 
-export function TablesRoom({ tables, users, currentUser, isMaster, onCreate, onEdit, onDelete }: TablesRoomProps) {
+export function TablesRoom({ tables, rooms, selectedRoomId, onSelectRoom, onCreateRoom, users, currentUser, isMaster, onCreate, onEdit, onDelete }: TablesRoomProps) {
   const { toggleSeat } = useApp()
   const [anonymous, setAnonymous] = useState(false)
   const occupied = tables.reduce((count, table) => count + table.seats.length, 0)
@@ -43,11 +47,14 @@ export function TablesRoom({ tables, users, currentUser, isMaster, onCreate, onE
       </div>
       <div className="tables-section-heading">
         <div><div className="table-section-kicker"><Sparkles size={13} /> AVVENTURE IN CORSO</div><h2>Scegli il tuo tavolo</h2></div>
-        {isMaster ? <button type="button" className="filter-button"><SlidersHorizontal size={15} /> Tutti i sistemi</button> : <span className="booking-count">{myBookings ? `Sei seduto a ${myBookings} tavolo${myBookings > 1 ? 'i' : ''}` : 'Nessun posto prenotato'}</span>}
+        <div className="room-actions">
+          <label className="room-select-label"><SlidersHorizontal size={15} /><select aria-label="Seleziona sala" value={selectedRoomId} onChange={(event) => onSelectRoom(event.target.value)}>{rooms.map((room) => <option value={room.id} key={room.id}>{room.name}</option>)}</select></label>
+          {isMaster && <button type="button" className="filter-button" onClick={onCreateRoom}><Plus size={15} /> Crea sala</button>}
+        </div>
       </div>
       {tables.length ? (
         <div className="table-grid">
-          {tables.map((table, index) => <TableCard key={table.id} table={table} users={users} currentUser={currentUser} isMaster={isMaster} accent={index % 3} onSeat={(seatNumber) => toggleSeat(table.id, seatNumber, anonymous)} onLeave={() => toggleSeat(table.id, 0, anonymous)} onEdit={() => onEdit(table)} onDelete={() => onDelete(table.id)} />)}
+          {tables.map((table, index) => <TableCard key={table.id} table={table} users={users} currentUser={currentUser} canManageTable={isMaster || table.masterUserId === currentUser.id} accent={index % 3} onSeat={(seatNumber) => void toggleSeat(table.id, seatNumber, anonymous)} onLeave={() => void toggleSeat(table.id, 0, anonymous)} onEdit={() => onEdit(table)} onDelete={() => onDelete(table.id)} />)}
         </div>
       ) : (
         <div className="empty-tables"><span><Dices size={24} /></span><b>La sala è tutta da scrivere.</b><p>{isMaster ? 'Crea il primo tavolo e invita il party a sedersi.' : 'Il Master non ha ancora aperto un tavolo.'}</p>{isMaster && <button type="button" className="button-primary" onClick={onCreate}><Plus size={16} /> Crea un tavolo</button>}</div>

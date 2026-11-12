@@ -8,6 +8,19 @@ export interface User {
   name: string
   role: Role
   color: string
+  avatarUrl: string
+}
+
+export interface Workspace {
+  id: string
+  name: string
+  role: Role
+}
+
+export interface GameRoom {
+  id: string
+  name: string
+  description: string
 }
 
 export interface Group {
@@ -44,6 +57,8 @@ export interface SeatBooking {
 
 export interface GameTable {
   id: string
+  roomId: string
+  masterUserId: string | null
   name: string
   adventureTitle: string
   system: string
@@ -54,11 +69,15 @@ export interface GameTable {
 }
 
 export interface AppState {
+  workspaces: Workspace[]
+  selectedWorkspaceId: string
   workspaceName: string
   users: User[]
   groups: Group[]
   polls: SessionPoll[]
   tables: GameTable[]
+  rooms: GameRoom[]
+  selectedRoomId: string
   role: Role
   currentUserId: string
   selectedGroupId: string

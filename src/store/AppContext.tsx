@@ -1,15 +1,19 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { AuthChangeEvent, Session, User as SupabaseUser } from '@supabase/supabase-js'
-import type { AppState, AppView, AuthStatus, CreateGroupInput, CreatePollInput, GameTableInput, Group, PollStatus, Role, User } from '../types'
+import type { AppState, AppView, AuthStatus, CreateGroupInput, CreatePollInput, GameRoom, GameTableInput, Group, PollStatus, Role, User, Workspace } from '../types'
 import { supabase } from '../lib/supabase'
 import { AppContext } from './context'
 
 const EMPTY_STATE: AppState = {
+  workspaces: [],
+  selectedWorkspaceId: '',
   workspaceName: '',
   users: [],
   groups: [],
   polls: [],
   tables: [],
+  rooms: [],
+  selectedRoomId: '',
   role: 'player',
   currentUserId: '',
   selectedGroupId: '',
@@ -40,20 +44,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const loadWorkspace = useCallback(async (user: SupabaseUser) => {
     const client = getSupabaseClient()
-    const membershipResult = await client.from('workspace_members')
+    const membershipsResult = await client.from('workspace_members')
       .select('workspace_id, role, workspaces(id, name, owner_id)')
       .eq('user_id', user.id)
-      .maybeSingle()
-    if (membershipResult.error) throw membershipResult.error
-    const membership = membershipResult.data
-    if (!membership) {
+    if (membershipsResult.error) throw membershipsResult.error
+    const memberships = membershipsResult.data ?? []
+    const workspaces: Workspace[] = memberships.flatMap((item) => {
+      const workspace = Array.isArray(item.workspaces) ? item.workspaces[0] : item.workspaces
+      return workspace ? [{
+        id: workspace.id as string,
+        name: workspace.name as string,
+        role: item.role as Role,
+      }] : []
+    })
+    if (!workspaces.length) {
       setState({ ...EMPTY_STATE, currentUserId: user.id })
       setAuthStatus('needsWorkspace')
       return
     }
 
-    const workspace = Array.isArray(membership.workspaces) ? membership.workspaces[0] : membership.workspaces
-    if (!workspace) throw new Error('Non è stato possibile caricare lo spazio di gioco associato al tuo account.')
+    const savedWorkspaceId = window.localStorage.getItem(`guildhall-workspace-${user.id}`)
+    const workspaceSummary = workspaces.find((item) => item.id === savedWorkspaceId) ?? workspaces[0]
+    if (!workspaceSummary) throw new Error('Non è stato possibile selezionare uno spazio di gioco.')
+    const membership = memberships.find((item) => item.workspace_id === workspaceSummary.id)
+    if (!membership) throw new Error('Non è stato possibile caricare i permessi dello spazio selezionato.')
+    const workspaceValue = Array.isArray(membership.workspaces) ? membership.workspaces[0] : membership.workspaces
+    if (!workspaceValue) throw new Error('Non è stato possibile caricare lo spazio di gioco associato al tuo account.')
+    const workspace = workspaceValue
+    window.localStorage.setItem(`guildhall-workspace-${user.id}`, workspace.id as string)
     const masterId = workspace.owner_id as string
     const groupsResult = await client.from('game_groups')
       .select('id, name, description, created_by')
@@ -62,13 +80,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (groupsResult.error) throw groupsResult.error
     const rawGroups = groupsResult.data ?? []
     const groupIds = rawGroups.map((group) => group.id as string)
-    const membershipsResult = groupIds.length
+    const groupMembershipsResult = groupIds.length
       ? await client.from('group_members').select('group_id, user_id').in('group_id', groupIds)
       : { data: [], error: null }
-    if (membershipsResult.error) throw membershipsResult.error
-    const groupMembers = membershipsResult.data ?? []
-    const userIds = [...new Set([masterId, user.id, ...groupMembers.map((member) => member.user_id as string)])]
-    const profilesResult = await client.from('profiles').select('id, display_name, color').in('id', userIds)
+    if (groupMembershipsResult.error) throw groupMembershipsResult.error
+    const groupMembers = groupMembershipsResult.data ?? []
+    const workspaceMembersResult = await client.from('workspace_members').select('user_id').eq('workspace_id', workspace.id)
+    if (workspaceMembersResult.error) throw workspaceMembersResult.error
+    const userIds = [...new Set([masterId, user.id, ...workspaceMembersResult.data.map((member) => member.user_id as string), ...groupMembers.map((member) => member.user_id as string)])]
+    const profilesResult = await client.from('profiles').select('id, display_name, color, avatar_url').in('id', userIds)
     if (profilesResult.error) throw profilesResult.error
     const profiles = profilesResult.data ?? []
     const users: User[] = profiles.map((profile, index) => ({
@@ -76,6 +96,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       name: (profile.display_name as string) || 'Avventuriero',
       role: profile.id === masterId ? 'master' : 'player',
       color: (profile.color as string) || USER_COLORS[index % USER_COLORS.length] || '#a28dde',
+      avatarUrl: (profile.avatar_url as string | null) ?? '',
     }))
     if (!users.some((profile) => profile.id === user.id)) {
       users.push({
@@ -83,6 +104,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         name: (user.user_metadata.display_name as string) || user.email || 'Avventuriero',
         role: user.id === masterId ? 'master' : 'player',
         color: USER_COLORS[users.length % USER_COLORS.length] || '#a28dde',
+        avatarUrl: '',
       })
     }
     const groups: Group[] = rawGroups.map((group) => ({
@@ -114,8 +136,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         createdAt: poll.created_at as string,
       }
     })
+    const roomsResult = await client.from('game_rooms').select('id, name, description').eq('workspace_id', workspace.id).order('created_at', { ascending: true })
+    if (roomsResult.error) throw roomsResult.error
+    const rooms: GameRoom[] = (roomsResult.data ?? []).map((room) => ({
+      id: room.id as string,
+      name: room.name as string,
+      description: room.description as string,
+    }))
     const tablesResult = await client.from('game_tables')
-      .select('id, name, adventure_title, system, image_url, max_seats, notes')
+      .select('id, room_id, master_user_id, name, adventure_title, system, image_url, max_seats, notes')
       .eq('workspace_id', workspace.id)
       .order('created_at', { ascending: true })
     if (tablesResult.error) throw tablesResult.error
@@ -128,6 +157,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const bookings = bookingsResult.data ?? []
     const tables = rawTables.map((table) => ({
       id: table.id as string,
+      roomId: table.room_id as string,
+      masterUserId: (table.master_user_id as string | null) ?? null,
       name: table.name as string,
       adventureTitle: table.adventure_title as string,
       system: table.system as string,
@@ -143,11 +174,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }))
     setState((previous) => ({
       ...previous,
+      workspaces,
+      selectedWorkspaceId: workspace.id as string,
       workspaceName: workspace.name as string,
       users,
       groups,
       polls,
       tables,
+      rooms,
+      selectedRoomId: rooms.some((room) => room.id === previous.selectedRoomId) ? previous.selectedRoomId : rooms[0]?.id ?? '',
       role: membership.role as Role,
       currentUserId: user.id,
       selectedGroupId: (membership.role === 'master' && previous.selectedGroupId === 'all')
@@ -209,7 +244,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!supabase || !authUser || authStatus !== 'ready') return
-    const tables = ['game_groups', 'group_members', 'session_polls', 'poll_dates', 'poll_votes', 'game_tables', 'seat_bookings']
+    const tables = ['game_groups', 'group_members', 'session_polls', 'poll_dates', 'poll_votes', 'game_rooms', 'game_tables', 'seat_bookings']
     let refreshTimer: number | undefined
     let refreshQueued = false
     const channel = supabase.channel(`guildhall-${authUser.id}`)
@@ -285,18 +320,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const createWorkspace = useCallback(async (name: string) => {
     const client = getSupabaseClient()
     if (!authUser) throw new Error('Accedi prima di creare uno spazio di gioco.')
-    await runMutation(async () => {
-      const { error: createError } = await client.rpc('create_workspace', { p_name: name.trim() })
+    setError(null)
+    try {
+      const { data, error: createError } = await client.rpc('create_workspace', { p_name: name.trim() })
       if (createError) throw createError
-    })
-  }, [authUser, runMutation])
+      if (typeof data !== 'string') throw new Error('Il server non ha restituito il nuovo spazio.')
+      window.localStorage.setItem(`guildhall-workspace-${authUser.id}`, data)
+      await loadWorkspace(authUser)
+    } catch (workspaceError) {
+      console.error('Creazione dello spazio non riuscita.', workspaceError)
+      setError(getErrorMessage(workspaceError))
+      throw workspaceError
+    }
+  }, [authUser, loadWorkspace])
+
+  const selectWorkspace = useCallback(async (workspaceId: string) => {
+    if (!authUser) throw new Error('Accedi prima di cambiare spazio.')
+    window.localStorage.setItem(`guildhall-workspace-${authUser.id}`, workspaceId)
+    setError(null)
+    try {
+      await loadWorkspace(authUser)
+    } catch (workspaceError) {
+      console.error('Cambio dello spazio di gioco non riuscito.', workspaceError)
+      setError(getErrorMessage(workspaceError))
+    }
+  }, [authUser, loadWorkspace])
 
   const joinGroup = useCallback(async (code: string) => {
     const client = getSupabaseClient()
     if (!authUser) throw new Error('Accedi prima di utilizzare un invito.')
     await runMutation(async () => {
-      const { error: joinError } = await client.rpc('join_group_with_invite', { p_code: code.trim() })
+      const { data: groupId, error: joinError } = await client.rpc('join_group_with_invite', { p_code: code.trim() })
       if (joinError) throw joinError
+      if (typeof groupId !== 'string') throw new Error('Il server non ha restituito il gruppo associato all’invito.')
+      const { data: group, error: groupError } = await client.from('game_groups').select('workspace_id').eq('id', groupId).single()
+      if (groupError) throw groupError
+      window.localStorage.setItem(`guildhall-workspace-${authUser.id}`, group.workspace_id)
     })
   }, [authUser, runMutation])
 
@@ -314,6 +373,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const client = getSupabaseClient()
     await runMutation(async () => {
       const { data, error: groupError } = await client.rpc('create_group_with_invite', {
+        p_workspace_id: state.selectedWorkspaceId,
         p_name: input.name.trim(),
         p_description: input.description.trim(),
       })
@@ -325,7 +385,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setState((current) => ({ ...current, selectedGroupId: result.group_id }))
       setInviteCode(result.invite_code)
     })
-  }, [runMutation])
+  }, [runMutation, state.selectedWorkspaceId])
 
   const createPoll = useCallback(async (input: CreatePollInput) => {
     const client = getSupabaseClient()
@@ -376,10 +436,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const createTable = useCallback(async (input: GameTableInput) => {
     const client = getSupabaseClient()
     await runMutation(async () => {
-      const { data: membership, error: membershipError } = await client.from('workspace_members').select('workspace_id').eq('user_id', authUser?.id).single()
-      if (membershipError) throw membershipError
       const { error: tableError } = await client.from('game_tables').insert({
-        workspace_id: membership.workspace_id,
+        workspace_id: state.selectedWorkspaceId,
+        room_id: input.roomId,
+        master_user_id: input.masterUserId,
         name: input.name.trim(),
         adventure_title: input.adventureTitle.trim(),
         system: input.system.trim(),
@@ -389,12 +449,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })
       if (tableError) throw tableError
     })
-  }, [authUser?.id, runMutation])
+  }, [runMutation, state.selectedWorkspaceId])
 
   const updateTable = useCallback(async (tableId: string, input: GameTableInput) => {
     const client = getSupabaseClient()
     await runMutation(async () => {
       const { error: updateError } = await client.from('game_tables').update({
+        room_id: input.roomId,
+        master_user_id: input.masterUserId,
         name: input.name.trim(),
         adventure_title: input.adventureTitle.trim(),
         system: input.system.trim(),
@@ -417,11 +479,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const toggleSeat = useCallback(async (tableId: string, seatNumber: number, anonymous: boolean) => {
     const client = getSupabaseClient()
     await runMutation(async () => {
-      const existing = state.tables.find((table) => table.id === tableId)?.seats.find((seat) => seat.userId === state.currentUserId)
+      const table = state.tables.find((item) => item.id === tableId)
+      const existing = table?.seats.find((seat) => seat.userId === state.currentUserId)
+      const selectedBooking = seatNumber > 0 ? table?.seats.find((seat) => seat.seatNumber === seatNumber) : undefined
+      const canManageTable = state.role === 'master' || table?.masterUserId === state.currentUserId
+      if (selectedBooking && selectedBooking.userId !== state.currentUserId && canManageTable) {
+        const { error: removeError } = await client.from('seat_bookings').delete().eq('id', selectedBooking.id)
+        if (removeError) throw removeError
+        return
+      }
       if (existing) {
         const { error: removeError } = await client.from('seat_bookings').delete().eq('id', existing.id)
         if (removeError) throw removeError
       } else {
+        if (selectedBooking) {
+          throw new Error('Il posto selezionato non è disponibile.')
+        }
         const { error: bookingError } = await client.from('seat_bookings').insert({
           game_table_id: tableId,
           user_id: state.currentUserId,
@@ -431,10 +504,64 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (bookingError) throw bookingError
       }
     })
-  }, [runMutation, state.currentUserId, state.tables])
+  }, [runMutation, state.currentUserId, state.role, state.tables])
 
   const setView = useCallback((activeView: AppView) => setState((current) => ({ ...current, activeView })), [])
   const setSelectedGroup = useCallback((selectedGroupId: string) => setState((current) => ({ ...current, selectedGroupId })), [])
+  const setSelectedRoom = useCallback((selectedRoomId: string) => setState((current) => ({ ...current, selectedRoomId })), [])
+  const createRoom = useCallback(async (room: Omit<GameRoom, 'id'>) => {
+    const client = getSupabaseClient()
+    setError(null)
+    try {
+      const { data: createdRoom, error: roomError } = await client.from('game_rooms').insert({
+        workspace_id: state.selectedWorkspaceId,
+        name: room.name.trim(),
+        description: room.description.trim(),
+      }).select('id').single()
+      if (roomError) throw roomError
+      if (!createdRoom) throw new Error('Il server non ha restituito la sala creata.')
+      if (authUser) await loadWorkspace(authUser)
+      setState((current) => ({ ...current, selectedRoomId: createdRoom.id }))
+    } catch (roomError) {
+      console.error('Creazione della sala non riuscita.', roomError)
+      setError(getErrorMessage(roomError))
+      throw roomError
+    }
+  }, [authUser, loadWorkspace, state.selectedWorkspaceId])
+  const updateProfile = useCallback(async (name: string, avatarUrl: string) => {
+    const client = getSupabaseClient()
+    setError(null)
+    try {
+      const { error: profileError } = await client.from('profiles').update({
+        display_name: name.trim(),
+        avatar_url: avatarUrl.trim() || null,
+      }).eq('id', state.currentUserId)
+      if (profileError) throw profileError
+      if (authUser) await loadWorkspace(authUser)
+    } catch (profileError) {
+      console.error('Aggiornamento del profilo non riuscito.', profileError)
+      setError(getErrorMessage(profileError))
+      throw profileError
+    }
+  }, [authUser, loadWorkspace, state.currentUserId])
+  const updatePassword = useCallback(async (password: string) => {
+    const client = getSupabaseClient()
+    const { error: passwordError } = await client.auth.updateUser({ password })
+    if (passwordError) throw passwordError
+  }, [])
+  const uploadImage = useCallback(async (file: File) => {
+    if (!authUser) throw new Error('Accedi prima di caricare un’immagine.')
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
+      throw new Error('Formato immagine non supportato. Usa JPG, PNG, WebP o GIF.')
+    }
+    if (file.size > 5 * 1024 * 1024) throw new Error('L’immagine non può superare 5 MB.')
+    const client = getSupabaseClient()
+    const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+    const path = `${authUser.id}/${crypto.randomUUID()}.${extension}`
+    const { error: uploadError } = await client.storage.from('guildhall-media').upload(path, file, { contentType: file.type })
+    if (uploadError) throw uploadError
+    return client.storage.from('guildhall-media').getPublicUrl(path).data.publicUrl
+  }, [authUser])
   const clearInvite = useCallback(() => setInviteCode(null), [])
   const clearError = useCallback(() => setError(null), [])
   const currentUser = useMemo(() => state.users.find((user) => user.id === state.currentUserId) ?? {
@@ -442,10 +569,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     name: (authUser?.user_metadata.display_name as string) || authUser?.email || 'Avventuriero',
     role: state.role,
     color: USER_COLORS[0] ?? '#b28af6',
+    avatarUrl: '',
   }, [authUser, state.currentUserId, state.role, state.users])
   const value = useMemo(() => ({
     state,
     currentUser,
+    authEmail: authUser?.email ?? '',
     isMaster: state.role === 'master',
     authStatus,
     error,
@@ -454,12 +583,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     signUp,
     signOut,
     createWorkspace,
+    selectWorkspace,
     joinGroup,
     createInvite,
     clearInvite,
     clearError,
     setView,
     setSelectedGroup,
+    setSelectedRoom,
+    createRoom,
+    updateProfile,
+    updatePassword,
+    uploadImage,
     toggleVote,
     confirmSession,
     createGroup,
@@ -468,7 +603,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     updateTable,
     deleteTable,
     toggleSeat,
-  }), [state, currentUser, authStatus, error, inviteCode, signIn, signUp, signOut, createWorkspace, joinGroup, createInvite, clearInvite, clearError, setView, setSelectedGroup, toggleVote, confirmSession, createGroup, createPoll, createTable, updateTable, deleteTable, toggleSeat])
+  }), [state, currentUser, authUser?.email, authStatus, error, inviteCode, signIn, signUp, signOut, createWorkspace, selectWorkspace, joinGroup, createInvite, clearInvite, clearError, setView, setSelectedGroup, setSelectedRoom, createRoom, updateProfile, updatePassword, uploadImage, toggleVote, confirmSession, createGroup, createPoll, createTable, updateTable, deleteTable, toggleSeat])
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }

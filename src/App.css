@@ -19,7 +19,9 @@
 .brand-mark { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid rgba(186, 152, 238, .28); border-radius: 12px; color: #c4a4ff; background: linear-gradient(145deg, rgba(150, 115, 205, .2), rgba(115, 77, 157, .08)); box-shadow: inset 0 1px rgba(255,255,255,.06); }
 .brand b { display: block; color: #f5f0fa; font-family: Georgia, "Times New Roman", serif; font-size: 15px; letter-spacing: 2.4px; font-weight: 700; }
 .brand small { display: block; margin-top: 2px; color: #817c8a; font-size: 10px; letter-spacing: .1px; }
-.workspace-switch { display: flex; align-items: center; gap: 10px; margin: 31px 0 30px; padding: 11px 10px; border: 1px solid var(--border); border-radius: 10px; background: rgba(255,255,255,.025); color: #827d89; }
+.workspace-selector { display: flex; align-items: center; gap: 9px; margin: 31px 0 30px; padding: 9px; border: 1px solid var(--border); border-radius: 10px; background: rgba(255,255,255,.025); color: #827d89; }
+.workspace-select { width: 100%; margin-top: 4px; padding: 0 16px 0 0; overflow: hidden; border: 0; color: #ded9e4; background: transparent; font-size: 11px; font-weight: 600; text-overflow: ellipsis; }
+.workspace-add { display: grid; place-items: center; width: 25px; height: 25px; flex: 0 0 auto; border: 1px solid var(--border); border-radius: 7px; color: #b6a1d9; background: rgba(255,255,255,.025); }
 .workspace-emblem { width: 30px; height: 30px; flex: 0 0 30px; display: grid; place-items: center; border-radius: 8px; color: #e3c18c; background: rgba(191, 147, 84, .13); font-size: 17px; }
 .workspace-text { min-width: 0; flex: 1; }
 .workspace-text small, .profile-name small { display: block; color: #77727f; font-size: 8px; letter-spacing: 1.15px; font-weight: 700; }
@@ -65,6 +67,7 @@
 .profile-button { display: flex; align-items: center; gap: 9px; width: 100%; padding: 11px 7px; border: 0; border-top: 1px solid var(--border); color: #827d89; background: transparent; text-align: left; }
 .profile-avatar, .top-avatar { display: grid; place-items: center; flex: 0 0 auto; border: 1px solid rgba(255,255,255,.18); border-radius: 50%; color: #261e2d; font-weight: 700; }
 .profile-avatar { width: 31px; height: 31px; font-size: 10px; }
+.profile-avatar img, .top-avatar img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
 .profile-name { min-width: 0; flex: 1; }
 .profile-name b { display: block; overflow: hidden; color: #d8d2de; font-size: 10px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .profile-name small { margin-top: 3px; font-size: 8px; letter-spacing: .2px; font-weight: 400; }
@@ -87,6 +90,7 @@
 .help-button { display: grid; place-items: center; width: 29px; height: 29px; border: 0; color: #827d89; background: transparent; }
 .help-button:hover { color: #d0baf1; }
 .top-avatar { width: 29px; height: 29px; border-color: rgba(255,255,255,.1); font-size: 9px; }
+.top-profile-button { display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: transparent; }
 .page-content { max-width: 1510px; margin: 0 auto; padding: 38px 43px 56px; }
 .page-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; margin-bottom: 27px; }
 .page-kicker { display: flex; align-items: center; gap: 8px; margin-bottom: 11px; color: #9e8ab9; font-size: 8px; font-weight: 700; letter-spacing: 1.55px; }
@@ -255,6 +259,9 @@
 .tables-section-heading h2 { margin: 0; color: #ebe6ef; font-family: Georgia, "Times New Roman", serif; font-size: 19px; font-weight: 500; }
 .filter-button { display: flex; align-items: center; gap: 7px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px; color: #aaa4b1; background: rgba(255,255,255,.025); font-size: 9px; }
 .filter-button:hover { border-color: rgba(184,155,228,.25); color: #e1d6ef; }
+.room-actions { display: flex; align-items: center; gap: 8px; }
+.room-select-label { display: flex; align-items: center; gap: 6px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 7px; color: #aaa4b1; background: rgba(255,255,255,.025); }
+.room-select-label select { max-width: 150px; border: 0; color: #d7d0df; background: transparent; font-size: 9px; }
 .booking-count { color: #92899a; font-size: 9px; }
 .table-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .table-card { min-width: 0; overflow: hidden; border: 1px solid rgba(200,188,218,.11); border-radius: 11px; background: linear-gradient(180deg, rgba(31,30,39,.95), rgba(23,23,30,.97)); box-shadow: 0 12px 28px rgba(0,0,0,.1); transition: border-color .2s, transform .2s; }
@@ -390,7 +397,8 @@
   .brand-mark { width: 33px; height: 33px; }
   .brand b { font-size: 13px; }
   .brand small { font-size: 9px; }
-  .workspace-switch, .side-label, .group-nav-heading, .group-list, .sidebar-bottom { display: none; }
+  .side-label, .group-nav-heading, .group-list, .sidebar-bottom { display: none; }
+  .workspace-selector { margin: 8px 0 0; padding: 6px; }
   .main-nav { display: flex; gap: 6px; margin-top: 12px; overflow-x: auto; }
   .nav-item { width: auto; flex: 1; justify-content: center; gap: 7px; padding: 8px 9px; white-space: nowrap; font-size: 10px; }
   .nav-item.active::before { top: auto; right: 10px; bottom: -10px; left: 10px; width: auto; height: 2px; }
@@ -433,6 +441,8 @@
   .table-stat-icon { width: 29px; height: 29px; }
   .tables-live { grid-column: 1 / -1; margin: 0; padding-top: 7px; border-top: 1px solid rgba(201,190,216,.06); }
   .tables-section-heading { align-items: flex-start; gap: 8px; }
+  .room-actions { flex-direction: column; align-items: flex-end; }
+  .room-select-label select { max-width: 112px; }
   .tables-section-heading h2 { font-size: 16px; }
   .booking-count { padding-top: 8px; text-align: right; }
   .table-grid { grid-template-columns: minmax(0,1fr); gap: 11px; }

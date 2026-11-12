@@ -3,7 +3,7 @@ import { CalendarDays, ChevronRight, CircleHelp, Dices, LogOut, Plus, Share2, Sh
 import { AuthGate } from './components/AuthGate'
 import { BestDaysList } from './components/BestDaysList'
 import { CalendarHeatmap } from './components/CalendarHeatmap'
-import { CreateGroupModal, CreatePollModal, CreateTableModal, JoinGroupModal } from './components/Modals'
+import { CreateGroupModal, CreatePollModal, CreateRoomModal, CreateTableModal, CreateWorkspaceModal, JoinGroupModal, ProfileModal } from './components/Modals'
 import { Navbar } from './components/Navbar'
 import { TablesRoom } from './components/TablesRoom'
 import { AppProvider } from './store/AppContext'
@@ -77,8 +77,8 @@ function GroupSchedule({ group }: { group: Group }) {
 }
 
 function Dashboard() {
-  const { state, currentUser, isMaster, setView, setSelectedGroup, createTable, updateTable, deleteTable, createGroup, createPoll, createInvite, joinGroup, inviteCode, clearInvite, signOut, error, clearError } = useApp()
-  const [modal, setModal] = useState<'group' | 'poll' | 'table' | 'join' | null>(null)
+  const { state, currentUser, authEmail, isMaster, setView, setSelectedGroup, setSelectedRoom, createRoom, createWorkspace, uploadImage, updateProfile, updatePassword, createTable, updateTable, deleteTable, createGroup, createPoll, createInvite, joinGroup, inviteCode, clearInvite, signOut, error, clearError } = useApp()
+  const [modal, setModal] = useState<'group' | 'poll' | 'table' | 'join' | 'room' | 'workspace' | 'profile' | null>(null)
   const [editingTable, setEditingTable] = useState<GameTable | null>(null)
   const [copyError, setCopyError] = useState('')
   const visibleGroups = useMemo(() => {
@@ -92,6 +92,7 @@ function Dashboard() {
   const activePoll = state.polls.find((poll) => poll.groupId === (activeGroups[0]?.id ?? state.selectedGroupId) && poll.status === 'active')
   const totalMembers = activeGroups.reduce((total, group) => total + group.memberIds.length + 1, 0)
   const isTables = state.activeView === 'tables'
+  const currentRoomTables = state.tables.filter((table) => table.roomId === state.selectedRoomId)
 
   async function copyInvite() {
     if (!inviteCode) return
@@ -114,7 +115,7 @@ function Dashboard() {
 
   return (
     <div className="app-shell">
-      <Navbar onCreateGroup={() => setModal('group')} onCreateInvite={(groupId) => void createInvite(groupId)} onJoinGroup={() => setModal('join')} />
+      <Navbar onCreateGroup={() => setModal('group')} onCreateWorkspace={() => setModal('workspace')} onCreateInvite={(groupId) => void createInvite(groupId)} onJoinGroup={() => setModal('join')} onProfile={() => setModal('profile')} />
       <div className="app-main">
         <header className="topbar">
           <div className="breadcrumb">
@@ -124,7 +125,7 @@ function Dashboard() {
             <span className="online-indicator"><i /> Dati sincronizzati</span>
             <div className="role-label"><Shield size={14} /> {isMaster ? 'Master' : 'Avventuriero'}</div>
             <button type="button" className="help-button" aria-label="Aiuto" title="Aiuto"><CircleHelp size={17} /></button>
-            <span className="top-avatar" style={{ backgroundColor: currentUser.color }} title={currentUser.name}>{initials(currentUser.name)}</span>
+            <button type="button" className="top-profile-button" onClick={() => setModal('profile')} aria-label="Apri il profilo" title={currentUser.name}><span className="top-avatar" style={{ backgroundColor: currentUser.color }}>{currentUser.avatarUrl ? <img src={currentUser.avatarUrl} alt="" /> : initials(currentUser.name)}</span></button>
             <button type="button" className="signout-button" onClick={() => void signOut()} title="Esci" aria-label="Esci"><LogOut size={15} /></button>
           </div>
         </header>
@@ -183,7 +184,11 @@ function Dashboard() {
             </>
           ) : (
             <TablesRoom
-              tables={state.tables}
+              tables={currentRoomTables}
+              rooms={state.rooms}
+              selectedRoomId={state.selectedRoomId}
+              onSelectRoom={setSelectedRoom}
+              onCreateRoom={() => setModal('room')}
               users={state.users}
               currentUser={currentUser}
               isMaster={isMaster}
@@ -198,7 +203,10 @@ function Dashboard() {
       {modal === 'group' && <CreateGroupModal onClose={() => setModal(null)} onCreate={async (data) => { await createGroup(data); setModal(null) }} />}
       {modal === 'join' && <JoinGroupModal onClose={() => setModal(null)} onJoin={async (code) => { await joinGroup(code); setModal(null) }} />}
       {modal === 'poll' && <CreatePollModal groups={visibleGroups} initialGroupId={state.selectedGroupId === 'all' ? visibleGroups[0]?.id : state.selectedGroupId} onClose={() => setModal(null)} onCreate={(data) => { createPoll(data); setSelectedGroup(data.groupId); setModal(null) }} />}
-      {modal === 'table' && <CreateTableModal table={editingTable} onClose={() => { setModal(null); setEditingTable(null) }} onSave={handleCreateTable} />}
+      {modal === 'table' && <CreateTableModal table={editingTable} rooms={state.rooms} users={state.users} currentRoomId={state.selectedRoomId} isOwner={isMaster} onClose={() => { setModal(null); setEditingTable(null) }} onSave={handleCreateTable} onUpload={uploadImage} />}
+      {modal === 'room' && <CreateRoomModal onClose={() => setModal(null)} onCreate={async (room) => { await createRoom(room); setModal(null) }} />}
+      {modal === 'workspace' && <CreateWorkspaceModal onClose={() => setModal(null)} onCreate={async (name) => { await createWorkspace(name); setModal(null) }} />}
+      {modal === 'profile' && <ProfileModal user={currentUser} email={authEmail} onClose={() => setModal(null)} onSave={updateProfile} onUpload={uploadImage} onChangePassword={updatePassword} onSignOut={() => void signOut()} />}
     </div>
   )
 }

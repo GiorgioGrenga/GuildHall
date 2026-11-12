@@ -4,12 +4,14 @@ import { useApp } from '../store/useApp'
 
 interface NavbarProps {
   onCreateGroup: () => void
+  onCreateWorkspace: () => void
   onCreateInvite: (groupId: string) => void
   onJoinGroup: () => void
+  onProfile: () => void
 }
 
-export function Navbar({ onCreateGroup, onCreateInvite, onJoinGroup }: NavbarProps) {
-  const { state, setView, setSelectedGroup, currentUser, isMaster } = useApp()
+export function Navbar({ onCreateGroup, onCreateWorkspace, onCreateInvite, onJoinGroup, onProfile }: NavbarProps) {
+  const { state, setView, setSelectedGroup, selectWorkspace, currentUser, isMaster } = useApp()
   const [groupsOpen, setGroupsOpen] = useState(true)
   const groups = isMaster ? state.groups : state.groups.filter((group) => group.memberIds.includes(currentUser.id))
 
@@ -19,10 +21,10 @@ export function Navbar({ onCreateGroup, onCreateInvite, onJoinGroup }: NavbarPro
         <span className="brand-mark"><Dices size={21} strokeWidth={2.2} /></span>
         <span><b>GUILDHALL</b><small>La tua casa, fuori dal gioco</small></span>
       </a>
-      <div className="workspace-switch">
+      <div className="workspace-selector">
         <span className="workspace-emblem">✦</span>
-        <span className="workspace-text"><small>SPAZIO DI GIOCO</small><b>{state.workspaceName}</b></span>
-        <ChevronDown size={14} />
+        <label className="workspace-text"><small>SPAZIO DI GIOCO</small><select aria-label="Cambia spazio" className="workspace-select" value={state.selectedWorkspaceId} onChange={(event) => void selectWorkspace(event.target.value)}>{state.workspaces.map((workspace) => <option value={workspace.id} key={workspace.id}>{workspace.name}</option>)}</select></label>
+        <button type="button" className="workspace-add" onClick={onCreateWorkspace} title="Crea un altro spazio" aria-label="Crea un altro spazio"><Plus size={15} /></button>
       </div>
 
       <div className="side-label">IL TUO SPAZIO</div>
@@ -33,6 +35,7 @@ export function Navbar({ onCreateGroup, onCreateInvite, onJoinGroup }: NavbarPro
         <button type="button" className={state.activeView === 'tables' ? 'nav-item active' : 'nav-item'} onClick={() => setView('tables')}>
           <Table2 size={17} /><span>Sala Tavoli</span><span className="nav-count muted">{state.tables.length}</span>
         </button>
+        <button type="button" className="nav-item invite-nav-item" onClick={onJoinGroup}><Share2 size={16} /><span>Invito</span></button>
         <button type="button" className="nav-item" onClick={() => setView('calendar')}><ScrollText size={17} /><span>Le mie avventure</span></button>
       </nav>
 
@@ -56,7 +59,8 @@ export function Navbar({ onCreateGroup, onCreateInvite, onJoinGroup }: NavbarPro
             </div>
           ))}
           {isMaster && <button type="button" className="add-group-link" onClick={onCreateGroup}><Plus size={14} /> Crea un gruppo</button>}
-          {!isMaster && <button type="button" className="add-group-link" onClick={onJoinGroup}><Plus size={14} /> Unisciti con codice</button>}
+          <button type="button" className="add-group-link" onClick={onJoinGroup}><Plus size={14} /> Unisciti con codice</button>
+          <button type="button" className="add-group-link" onClick={onCreateWorkspace}><Plus size={14} /> Crea un altro spazio</button>
         </div>
       )}
 
@@ -67,8 +71,8 @@ export function Navbar({ onCreateGroup, onCreateInvite, onJoinGroup }: NavbarPro
           <span>Comincia da una data che va bene a tutti.</span>
           <button type="button" onClick={() => setView('calendar')}>Apri calendario <span>↗</span></button>
         </div>
-        <button type="button" className="profile-button">
-          <span className="profile-avatar" style={{ backgroundColor: currentUser.color }}>{currentUser.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase()}</span>
+        <button type="button" className="profile-button" onClick={onProfile}>
+          <span className="profile-avatar" style={{ backgroundColor: currentUser.color }}>{currentUser.avatarUrl ? <img src={currentUser.avatarUrl} alt="" /> : currentUser.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase()}</span>
           <span className="profile-name"><b>{currentUser.name}</b><small>{isMaster ? 'Dungeon Master' : 'Avventuriero'}</small></span>
           <Settings2 size={16} />
         </button>
